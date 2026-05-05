@@ -1,9 +1,5 @@
 <script setup lang="ts">
 import BpmnModeler from 'bpmn-js/lib/Modeler'
-import {
-  BpmnPropertiesPanelModule,
-  BpmnPropertiesProviderModule
-} from 'bpmn-js-properties-panel'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type {
   BpmnValidationBusinessObject,
@@ -18,7 +14,6 @@ import type {
 } from '../../features/bpmn-layout/core/types'
 
 const canvasRef = ref<HTMLDivElement | null>(null)
-const propertiesPanelRef = ref<HTMLDivElement | null>(null)
 const isReady = ref(false)
 const errorMessage = ref('')
 
@@ -46,17 +41,13 @@ type CanvasService = {
 }
 
 const initModeler = async () => {
-  if (!canvasRef.value || !propertiesPanelRef.value) {
+  if (!canvasRef.value) {
     return
   }
 
   try {
     modeler = new BpmnModeler({
-      container: canvasRef.value,
-      propertiesPanel: {
-        parent: propertiesPanelRef.value
-      },
-      additionalModules: [BpmnPropertiesPanelModule as any, BpmnPropertiesProviderModule as any]
+      container: canvasRef.value
     })
     isReady.value = true
     errorMessage.value = ''
@@ -270,9 +261,6 @@ onBeforeUnmount(() => {
       show-icon
       :title="errorMessage"
     />
-    <div v-show="isReady" class="bpmn-editor__layout">
-      <div ref="canvasRef" class="bpmn-editor__canvas"></div>
-      <div ref="propertiesPanelRef" class="bpmn-editor__properties"></div>
-    </div>
+    <div v-show="isReady" ref="canvasRef" class="bpmn-editor__canvas"></div>
   </div>
 </template>
