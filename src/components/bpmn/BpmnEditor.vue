@@ -10,6 +10,12 @@ import type {
   BpmnValidationContext,
   BpmnValidationElement
 } from '../../features/bpmn-validation/types'
+import { executeBpmnLayoutStrategy } from '../../features/bpmn-layout/core/executor'
+import type {
+  BpmnLayoutElement,
+  BpmnLayoutContext,
+  BpmnLayoutStrategy
+} from '../../features/bpmn-layout/core/types'
 import { createCreateBehaviorModule } from '../../features/bpmn-nodes/core/modules/create-behavior'
 import { createPaletteProviderModule } from '../../features/bpmn-nodes/core/modules/palette-provider'
 import { createCustomRendererModule } from '../../features/bpmn-nodes/core/modules/renderer'
@@ -47,6 +53,10 @@ const registryService = createNodeRegistryService(defaultEnabledNodeDefinitions)
 type DiagramElement = {
   id?: string
   type?: string
+  x?: number
+  y?: number
+  width?: number
+  height?: number
   businessObject?: BpmnValidationBusinessObject
   parent?: { id?: string }
   incoming?: Array<{ id?: string }>
@@ -67,6 +77,7 @@ type EventBusService = {
 
 type ModelingService = {
   updateProperties: (element: DiagramElement, properties: Record<string, unknown>) => void
+  moveShape: (shape: DiagramElement, delta: { x: number; y: number }) => void
 }
 
 type ModdleService = {
@@ -184,6 +195,38 @@ const getSelectedElement = (): DiagramElement | null => {
   return selection.get()?.[0] ?? null
 }
 
+const getLayoutElements = (): BpmnLayoutElement[] => {
+  if (!modeler) {
+    throw new Error('BPMN 编辑器尚未初始化')
+  }
+
+  const elementRegistry = modeler.get('elementRegistry') as {
+    getAll: () => DiagramElement[]
+  }
+
+  return elementRegistry
+    .getAll()
+    .filter((element): element is DiagramElement & { id: string; type: string; x: number; y: number; width: number; height: number } => {
+      return Boolean(
+        element.id &&
+          element.type &&
+          typeof element.x === 'number' &&
+          typeof element.y === 'number' &&
+          typeof element.width === 'number' &&
+          typeof element.height === 'number'
+      )
+    })
+    .filter((element) => element.type !== 'label')
+    .map((element) => ({
+      id: element.id,
+      type: element.type,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height
+    }))
+}
+
 const getSelectedNodeSnapshot = () => {
   const selectedElement = getSelectedElement()
   if (!selectedElement?.id || !selectedElement.type) {
@@ -270,7 +313,25 @@ const applyCustomNodeDecorations = () => {
     })
 
     activeNodeOverlays.set(element.id, overlayId)
-  })
+    })
+}
+
+const getLayoutContext = async (): Promise<BpmnLayoutContext> => {
+  if (!modeler) {
+    throw new Error('BPMN 编辑器尚未初始化')
+  }
+
+  const xml = await saveXml()
+  const elements = getLayoutElements()
+  const elementTypes = elements.map((element) => element.type)
+  const definitions = (modeler.getDefinitions?.() ?? null) as BpmnValidationBusinessObject | null
+
+  return {
+    xml,
+    definitions,
+    elements,
+    elementTypes
+  }
 }
 
 const updateSelectedNodeField = (fieldKey: string, value: string) => {
@@ -290,6 +351,39 @@ const updateSelectedNodeField = (fieldKey: string, value: string) => {
 
   const modeling = modeler.get('modeling') as ModelingService
   modeling.updateProperties(selectedElement, {})
+  emitSelectionChange()
+}
+
+const applyLayoutStrategy = async (strategy: BpmnLayoutStrategy) => {
+  if (!modeler) {
+    throw new Error('BPMN 编辑器尚未初始化')
+  }
+
+  if (strategy.key === 'fit-viewport') {
+    ;(modeler.get('canvas') as CanvasService).zoom('fit-viewport')
+    return
+  }
+
+  const layoutContext = await getLayoutContext()
+  const result = executeBpmnLayoutStrategy(strategy, layoutContext)
+  const modeling = modeler.get('modeling') as ModelingService
+  const elementRegistry = modeler.get('elementRegistry') as {
+    get: (id: string) => DiagramElement | undefined
+  }
+
+  result.updates.forEach((update) => {
+    const target = elementRegistry.get(update.elementId)
+    if (!target || typeof target.x !== 'number' || typeof target.y !== 'number') {
+      return
+    }
+
+    modeling.moveShape(target, {
+      x: update.x - target.x,
+      y: update.y - target.y
+    })
+  })
+
+  applyCustomNodeDecorations()
   emitSelectionChange()
 }
 
@@ -351,7 +445,9 @@ defineExpose({
   getNodeDefinition,
   getNodeDefinitions,
   getSelectedNodeSnapshot,
+  getLayoutContext,
   importXml,
+  applyLayoutStrategy,
   saveXml,
   saveSvg,
   updateSelectedNodeField,

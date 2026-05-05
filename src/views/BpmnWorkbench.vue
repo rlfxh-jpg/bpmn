@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { Download, RefreshRight } from '@element-plus/icons-vue'
+import { Download, Operation, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import BpmnEditor from '../components/bpmn/BpmnEditor.vue'
 import defaultXml from '../assets/default.bpmn?raw'
+import { defaultBpmnLayoutRegistry } from '../features/bpmn-layout/presets/default-strategies'
+import type { BpmnLayoutContext, BpmnLayoutStrategy } from '../features/bpmn-layout/core/types'
 import { defaultBpmnValidationRules } from '../features/bpmn-validation/default-rules'
 import { validateBpmnBeforeSave } from '../features/bpmn-validation/validator'
 import type { BpmnValidationContext } from '../features/bpmn-validation/types'
@@ -18,10 +20,12 @@ type SelectedNodeSnapshot = {
 }
 
 type BpmnEditorExposed = {
+  getLayoutContext: () => Promise<BpmnLayoutContext>
   getValidationContext: () => Promise<BpmnValidationContext>
   getNodeDefinition: (nodeKey: string) => BpmnNodeDefinition | undefined
   getNodeDefinitions: () => BpmnNodeDefinition[]
   getSelectedNodeSnapshot: () => SelectedNodeSnapshot | null
+  applyLayoutStrategy: (strategy: BpmnLayoutStrategy) => Promise<void>
   importXml: (xml: string) => Promise<void>
   saveXml: () => Promise<string>
   saveSvg: () => Promise<string>
@@ -34,6 +38,7 @@ const lastOutput = ref('等待操作')
 const selectedNodeKey = ref('')
 const selectedNodeName = ref('')
 const selectedNodeFields = ref<Record<string, string>>({})
+const layoutStrategies = defaultBpmnLayoutRegistry.list()
 
 const buildBpmnFileName = () => {
   const now = new Date()
@@ -122,6 +127,22 @@ const updateBusinessField = async (fieldKey: string, value: string) => {
   }
 }
 
+const handleApplyLayout = async (strategyKey: string) => {
+  try {
+    const editor = await waitForEditor()
+    const strategy = defaultBpmnLayoutRegistry.get(strategyKey)
+
+    if (!strategy) {
+      throw new Error(`未找到布局策略: ${strategyKey}`)
+    }
+
+    await editor.applyLayoutStrategy(strategy)
+    ElMessage.success(`已执行布局策略：${strategy.label}`)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '布局格式化失败')
+  }
+}
+
 const handleExportXml = async () => {
   try {
     const editor = await waitForEditor()
@@ -202,6 +223,22 @@ const handleSelectionChange = (snapshot: SelectedNodeSnapshot | null) => {
         <p>Vue 3 + TypeScript + Element Plus + bpmn-js</p>
       </div>
       <div class="workbench__actions">
+        <el-dropdown @command="(command:string) => handleApplyLayout(command)">
+          <el-button :icon="Operation">
+            格式化布局
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="strategy in layoutStrategies"
+                :key="strategy.key"
+                :command="strategy.key"
+              >
+                {{ strategy.label }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-button type="primary" :icon="Download" @click="handleExportXml">导出 BPMN</el-button>
         <el-button :icon="Download" @click="handleExportSvg">导出 SVG</el-button>
         <el-button :icon="RefreshRight" @click="handleReset">重置画布</el-button>
