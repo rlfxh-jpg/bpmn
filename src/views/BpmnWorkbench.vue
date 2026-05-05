@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Download, Operation, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import BpmnEditor from '../components/bpmn/BpmnEditor.vue'
 import defaultXml from '../assets/default.bpmn?raw'
 import { defaultBpmnLayoutRegistry } from '../features/bpmn-layout/presets/default-strategies'
@@ -9,35 +9,19 @@ import type { BpmnLayoutContext, BpmnLayoutStrategy } from '../features/bpmn-lay
 import { defaultBpmnValidationRules } from '../features/bpmn-validation/default-rules'
 import { validateBpmnBeforeSave } from '../features/bpmn-validation/validator'
 import type { BpmnValidationContext } from '../features/bpmn-validation/types'
-import type { BpmnNodeDefinition } from '../features/bpmn-nodes/core/types'
-
-type SelectedNodeSnapshot = {
-  id: string
-  type: string
-  name: string
-  nodeKey: string
-  nodeData: Record<string, string>
-}
 
 type BpmnEditorExposed = {
   getLayoutContext: () => Promise<BpmnLayoutContext>
   getValidationContext: () => Promise<BpmnValidationContext>
-  getNodeDefinition: (nodeKey: string) => BpmnNodeDefinition | undefined
-  getNodeDefinitions: () => BpmnNodeDefinition[]
-  getSelectedNodeSnapshot: () => SelectedNodeSnapshot | null
   applyLayoutStrategy: (strategy: BpmnLayoutStrategy) => Promise<void>
   importXml: (xml: string) => Promise<void>
   saveXml: () => Promise<string>
   saveSvg: () => Promise<string>
   reset: () => Promise<void>
-  updateSelectedNodeField: (fieldKey: string, value: string) => void
 }
 
 const editorRef = ref<BpmnEditorExposed | null>(null)
 const lastOutput = ref('等待操作')
-const selectedNodeKey = ref('')
-const selectedNodeName = ref('')
-const selectedNodeFields = ref<Record<string, string>>({})
 const layoutStrategies = defaultBpmnLayoutRegistry.list()
 
 const buildBpmnFileName = () => {
@@ -74,12 +58,6 @@ const waitForEditor = async () => {
   return editorRef.value
 }
 
-const enabledNodeDefinitions = computed(() => editorRef.value?.getNodeDefinitions() ?? [])
-
-const selectedNodeDefinition = computed(() =>
-  enabledNodeDefinitions.value.find((definition) => definition.key === selectedNodeKey.value)
-)
-
 const loadDefaultDiagram = async () => {
   try {
     const editor = await waitForEditor()
@@ -89,41 +67,6 @@ const loadDefaultDiagram = async () => {
     const message = error instanceof Error ? error.message : '默认 BPMN 导入失败'
     lastOutput.value = message
     ElMessage.error(message)
-  }
-}
-
-const refreshSelectedNodeState = async () => {
-  try {
-    const editor = await waitForEditor()
-    const selectedElement = editor.getSelectedNodeSnapshot()
-
-    if (!selectedElement) {
-      selectedNodeKey.value = ''
-      selectedNodeName.value = ''
-      selectedNodeFields.value = {}
-      return
-    }
-
-    selectedNodeKey.value = selectedElement.nodeKey ?? ''
-    selectedNodeName.value = selectedElement.name ?? ''
-    selectedNodeFields.value = selectedElement.nodeData ?? {}
-  } catch {
-    selectedNodeKey.value = ''
-    selectedNodeName.value = ''
-    selectedNodeFields.value = {}
-  }
-}
-
-const updateBusinessField = async (fieldKey: string, value: string) => {
-  try {
-    const editor = await waitForEditor()
-    editor.updateSelectedNodeField(fieldKey, value)
-    selectedNodeFields.value = {
-      ...selectedNodeFields.value,
-      [fieldKey]: value
-    }
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '业务字段更新失败')
   }
 }
 
@@ -192,27 +135,9 @@ const handleReset = async () => {
   }
 }
 
-const handleSelectionMock = async () => {
-  await refreshSelectedNodeState()
-}
-
 onMounted(() => {
   void loadDefaultDiagram()
-  void handleSelectionMock()
 })
-
-const handleSelectionChange = (snapshot: SelectedNodeSnapshot | null) => {
-  if (!snapshot) {
-    selectedNodeKey.value = ''
-    selectedNodeName.value = ''
-    selectedNodeFields.value = {}
-    return
-  }
-
-  selectedNodeKey.value = snapshot.nodeKey
-  selectedNodeName.value = snapshot.name
-  selectedNodeFields.value = snapshot.nodeData
-}
 </script>
 
 <template>
@@ -246,31 +171,12 @@ const handleSelectionChange = (snapshot: SelectedNodeSnapshot | null) => {
     </el-header>
     <el-container class="workbench__body">
       <el-main class="workbench__main">
-        <BpmnEditor ref="editorRef" @selection-change="handleSelectionChange" />
+        <BpmnEditor ref="editorRef" />
       </el-main>
       <el-aside width="360px" class="workbench__aside">
         <el-card shadow="never" class="workbench__panel workbench__panel--business">
-          <template #header>业务属性</template>
-          <template v-if="selectedNodeDefinition">
-            <div class="workbench__business-header">
-              <strong>{{ selectedNodeDefinition.displayName }}</strong>
-              <span>{{ selectedNodeName || '未命名节点' }}</span>
-            </div>
-            <el-form label-position="top">
-              <el-form-item
-                v-for="field in selectedNodeDefinition.fields"
-                :key="field.key"
-                :label="field.label"
-              >
-                <el-input
-                  :model-value="selectedNodeFields[field.key] ?? ''"
-                  :placeholder="field.placeholder ?? ''"
-                  @update:model-value="(value:any) => updateBusinessField(field.key, value)"
-                />
-              </el-form-item>
-            </el-form>
-          </template>
-          <el-empty v-else description="请选择扩展节点查看业务属性" />
+          <template #header>预留区域</template>
+          <el-empty description="bpmn-nodes 正在重构中，业务节点扩展界面暂时移除" />
         </el-card>
         <el-card shadow="never" class="workbench__panel workbench__panel--output">
           <template #header>输出结果</template>
