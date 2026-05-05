@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Harness 工程与 Agent 的关系</title>
+  <desc id="desc">说明 Harness 工程提供上下文、工具、权限、沙箱、记忆和可观测性，Agent 在其中完成推理与执行。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#fff8f2"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#1f2937" flood-opacity="0.15"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .title { font: 700 34px "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; fill: #102033; }
+      .subtitle { font: 400 18px "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; fill: #52616f; }
+      .label { font: 700 22px "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; fill: #132238; }
+      .body { font: 400 16px "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; fill: #435364; }
+      .small { font: 400 14px "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; fill: #627080; }
+      .harness { fill: #ffffff; stroke: #bcd7ee; stroke-width: 3; rx: 28; filter: url(#shadow); }
+      .agent { fill: #eaf4ff; stroke: #2563eb; stroke-width: 3; rx: 24; filter: url(#shadow); }
+      .module { fill: #fffaf0; stroke: #e9c46a; stroke-width: 2; rx: 16; }
+      .module2 { fill: #f1fbf3; stroke: #9bd0a2; stroke-width: 2; rx: 16; }
+      .module3 { fill: #f7f2ff; stroke: #c4a6ff; stroke-width: 2; rx: 16; }
+      .line { stroke: #2563eb; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #7c8aa0; stroke-width: 2; stroke-dasharray: 8 8; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <text x="64" y="66" class="title">Harness 工程与 Agent 的区别</text>
+  <text x="64" y="98" class="subtitle">Agent 负责思考和决策；Harness 负责把它接入真实工程世界，并管住边界。</text>
+
+  <rect x="80" y="145" width="1120" height="470" class="harness"/>
+  <text x="112" y="190" class="label">Harness 工程 / Agent Runtime</text>
+  <text x="112" y="220" class="body">把模型能力工程化：上下文装载、工具协议、权限审批、沙箱、记忆、日志、插件和多人协作。</text>
+
+  <rect x="490" y="285" width="300" height="150" class="agent"/>
+  <text x="570" y="335" class="label">Agent</text>
+  <text x="532" y="370" class="body">基于目标和上下文做推理</text>
+  <text x="532" y="398" class="body">选择工具、执行步骤、汇总结果</text>
+
+  <rect x="126" y="265" width="210" height="88" class="module"/>
+  <text x="166" y="300" class="label">上下文</text>
+  <text x="154" y="328" class="small">代码、文档、AGENTS.md</text>
+
+  <rect x="126" y="402" width="210" height="88" class="module2"/>
+  <text x="166" y="437" class="label">权限与沙箱</text>
+  <text x="154" y="465" class="small">审批、隔离、危险动作拦截</text>
+
+  <rect x="862" y="265" width="236" height="88" class="module3"/>
+  <text x="922" y="300" class="label">工具系统</text>
+  <text x="890" y="328" class="small">Shell、MCP、浏览器、编辑器</text>
+
+  <rect x="862" y="402" width="236" height="88" class="module"/>
+  <text x="922" y="437" class="label">插件与技能</text>
+  <text x="890" y="465" class="small">Skills、Subagents、Hooks、Apps</text>
+
+  <rect x="418" y="512" width="444" height="68" class="module2"/>
+  <text x="548" y="548" class="label">可观测性与迭代</text>
+  <text x="505" y="570" class="small">日志、任务记录、测试证据、团队复盘和版本发布</text>
+
+  <path class="line" d="M336 309 C392 309 420 330 480 348"/>
+  <path class="line" d="M336 446 C392 446 418 410 480 390"/>
+  <path class="line" d="M800 348 C846 328 850 310 862 309"/>
+  <path class="line" d="M800 390 C846 410 850 444 862 446"/>
+  <path class="line" d="M640 438 C640 474 640 488 640 510"/>
+
+  <path class="dash" d="M252 252 C390 172 892 172 1012 252"/>
+  <text x="456" y="170" class="small">Harness 决定 Agent 能看到什么、能用什么、怎么留下证据</text>
+
+  <rect x="80" y="640" width="1120" height="48" rx="16" fill="#102033" opacity="0.92"/>
+  <text x="110" y="671" font-family="Microsoft YaHei, Noto Sans CJK SC, Arial, sans-serif" font-size="18" fill="#ffffff">
+    类比：Agent 像工程师，Harness 像工作台、制度、工具箱、权限系统和质量流水线的总和。
+  </text>
+</svg>
