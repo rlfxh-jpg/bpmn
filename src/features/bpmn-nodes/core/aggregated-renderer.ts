@@ -1,12 +1,5 @@
-import { getNodeKey } from './services/extension-field-service'
 import type { BpmnNodePlugin, RuntimeDiagramElement } from './types'
 
-/**
- * 聚合渲染模块第一版不直接实现深度 SVG renderer，
- * 而是统一根据节点 renderer 配置添加 marker。
- *
- * 这样可以保持节点独立声明外观意图，同时避免 renderer 深层依赖带来的打包风险。
- */
 type EventBusLike = {
   on: (eventName: string, handler: (event: { element?: RuntimeDiagramElement }) => void) => void
 }
@@ -41,12 +34,7 @@ class AggregatedRenderer {
       this.activeMarkers.delete(element.id)
     }
 
-    const nodeKey = getNodeKey(element.businessObject)
-    if (!nodeKey) {
-      return
-    }
-
-    const plugin = this.plugins.find((item) => item.type === nodeKey && item.renderer)
+    const plugin = this.plugins.find((item) => item.renderer && item.is(element))
     if (!plugin?.renderer) {
       return
     }

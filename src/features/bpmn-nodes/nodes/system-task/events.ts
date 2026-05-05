@@ -1,20 +1,14 @@
 import type { NodeEventHandlers } from '../../core/types'
+import { writeSystemTaskDefaults } from './helpers'
 
-/**
- * 系统处理节点的专属事件逻辑。
- */
 export const systemTaskEvents: NodeEventHandlers = {
-  created({ element, services, moddle }) {
+  created({ element, moddle }) {
     const businessObject = element.businessObject
     if (!businessObject) {
       return
     }
 
-    services.setNodeKey(moddle, businessObject, 'system-task')
-    services.setNodeData(moddle, businessObject, {
-      serviceCode: '',
-      retryPolicy: 'none'
-    })
+    writeSystemTaskDefaults(moddle, businessObject)
   },
   click() {},
   changed() {}

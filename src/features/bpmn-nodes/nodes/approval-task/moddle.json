@@ -8,9 +8,7 @@
   "types": [
     {
       "name": "NodeMeta",
-      "superClass": [
-        "Element"
-      ],
+      "superClass": ["Element"],
       "properties": [
         {
           "name": "nodeKey",
@@ -26,9 +24,7 @@
     },
     {
       "name": "Field",
-      "superClass": [
-        "Element"
-      ],
+      "superClass": ["Element"],
       "properties": [
         {
           "name": "key",
