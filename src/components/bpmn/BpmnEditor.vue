@@ -20,6 +20,17 @@ import type {
   BpmnLayoutStrategy
 } from '../../features/bpmn-layout/core/types'
 
+const props = withDefaults(
+  defineProps<{
+    additionalModules?: unknown[]
+    moddleExtensions?: Record<string, unknown>
+  }>(),
+  {
+    additionalModules: () => [],
+    moddleExtensions: () => ({})
+  }
+)
+
 const canvasRef = ref<HTMLDivElement | null>(null)
 const isReady = ref(false)
 const errorMessage = ref('')
@@ -54,7 +65,9 @@ const initModeler = async () => {
 
   try {
     modeler = new BpmnModeler({
-      container: canvasRef.value
+      container: canvasRef.value,
+      additionalModules: [...props.additionalModules] as any[],
+      moddleExtensions: props.moddleExtensions as any
     })
     isReady.value = true
     errorMessage.value = ''

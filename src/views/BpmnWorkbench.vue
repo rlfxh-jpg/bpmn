@@ -5,6 +5,7 @@ import { nextTick, onMounted, ref } from 'vue'
 import BpmnEditor from '../components/bpmn/BpmnEditor.vue'
 import defaultXml from '../assets/default.bpmn?raw'
 import { defaultBpmnLayoutRegistry } from '../features/bpmn-layout/presets/default-strategies'
+import { customModdle, customNodeModule } from '../features/bpmn-nodes'
 import type { BpmnLayoutContext, BpmnLayoutStrategy } from '../features/bpmn-layout/core/types'
 import { defaultBpmnValidationRules } from '../features/bpmn-validation/default-rules'
 import { validateBpmnBeforeSave } from '../features/bpmn-validation/validator'
@@ -171,7 +172,11 @@ onMounted(() => {
     </el-header>
     <el-container class="workbench__body">
       <el-main class="workbench__main">
-        <BpmnEditor ref="editorRef" />
+        <BpmnEditor
+          ref="editorRef"
+          :additional-modules="[customNodeModule]"
+          :moddle-extensions="{ custom: customModdle }"
+        />
       </el-main>
       <el-aside width="360px" class="workbench__aside">
         <el-card shadow="never" class="workbench__panel workbench__panel--business">

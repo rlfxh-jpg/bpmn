@@ -1,13 +1,9 @@
-import { approvalTaskDefinition } from '../approval-task/definition'
-import { systemTaskDefinition } from '../system-task/definition'
+import approvalTaskNode from '../nodes/approval-task'
+import systemTaskNode from '../nodes/system-task'
 
 /**
- * 默认启用的节点集合。
+ * 当前默认启用的节点插件集合。
  *
- * 这里把“有哪些节点可用”和“节点本身怎么实现”分离开来，
- * 是为了后续支持：
- * - 不同场景启用不同节点集
- * - 前端静态配置切换
- * - 后端下发启用清单
+ * 该文件只负责声明“启用哪些节点”，不负责节点实现本身。
  */
-export const defaultEnabledNodeDefinitions = [approvalTaskDefinition, systemTaskDefinition]
+export const defaultEnabledNodePlugins = [approvalTaskNode, systemTaskNode]

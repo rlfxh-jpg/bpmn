@@ -1,43 +1,31 @@
-/**
- * 该文件定义 bpmn-nodes feature 的公共类型协议。
- *
- * 设计目标：
- * 1. 让每个节点 feature 都遵循统一结构，而不是各写各的配置格式。
- * 2. 让页面层、编辑器层、注册中心只依赖抽象协议，不依赖具体节点实现。
- * 3. 为后续新增 palette / renderer / properties / behavior 等能力预留稳定扩展面。
- */
+import type { BpmnValidationBusinessObject } from '../../bpmn-validation/types'
 
 /**
- * 单个业务字段的定义。
+ * 运行时画布元素的本地收敛类型。
  *
- * 这些字段最终会显示在右侧业务属性面板中，并且通过统一字段服务写入 BPMN 扩展数据。
+ * 该类型不是完整的 bpmn-js 官方 element 类型，而是当前节点插件系统真正依赖的最小字段集合。
  */
-export type BpmnNodeFieldDefinition = {
-  key: string
-  label: string
-  defaultValue?: string
-  required?: boolean
-  placeholder?: string
+export type RuntimeDiagramElement = {
+  id?: string
+  type?: string
+  businessObject?: BpmnValidationBusinessObject
 }
 
 /**
- * 左侧 palette 中一个节点入口的展示配置。
- *
- * 这里仅描述“如何展示和归类”，真正的点击/拖拽创建逻辑由 core/modules/palette-provider.ts 负责。
+ * 单个节点在左侧工具栏中的展示配置。
  */
-export type BpmnNodePaletteEntry = {
+export type NodePaletteConfig = {
   group: string
   className: string
   title: string
 }
 
 /**
- * 节点视觉配置。
+ * 单个节点在画布上的外观配置。
  *
- * 当前首版主要用于 marker + overlay 方案的颜色和角标文本，
- * 后续如果恢复更完整的 renderer，也继续复用这份配置。
+ * 第一版主要驱动 marker / overlay / CSS 呈现，而不是直接渲染底层 SVG。
  */
-export type BpmnNodeStyleDefinition = {
+export type NodeRendererConfig = {
   fill: string
   stroke: string
   label?: string
@@ -45,38 +33,62 @@ export type BpmnNodeStyleDefinition = {
 }
 
 /**
- * 单个可插拔节点的统一定义对象。
- *
- * 这是节点对外暴露的唯一“装配入口”：
- * - registry 只认这个对象
- * - palette 模块从这里取左侧入口信息
- * - create behavior 从这里取默认名称和初始化字段
- * - 业务属性面板从这里取字段定义
- *
- * 这样每个节点 feature 可以高内聚地描述自己，而核心层只需要理解这一个抽象。
+ * 单个节点提供的 moddle descriptor 片段。
  */
-export type BpmnNodeDefinition = {
-  key: string
-  baseType: 'bpmn:UserTask' | 'bpmn:ServiceTask'
-  displayName: string
-  palette: BpmnNodePaletteEntry
-  style: BpmnNodeStyleDefinition
-  fields: BpmnNodeFieldDefinition[]
-  initBusinessFields: () => Record<string, string>
-  matches?: (businessObject: Record<string, unknown> | null | undefined) => boolean
+export type NodeModdleFragment = {
+  types: unknown[]
 }
 
 /**
- * 注册中心对外暴露的最小能力集合。
- *
- * 这里刻意保持简单：
- * - `list` 用于页面或模块枚举所有已启用节点
- * - `getByKey` 用于运行时按 nodeKey 精确查找节点定义
- *
- * 后续如果出现更复杂的筛选条件，可以扩展 registry 实现，
- * 但页面和编辑器层不需要感知底层索引结构。
+ * 向节点事件处理函数注入的运行时服务集合。
  */
-export type BpmnNodeRegistry = {
-  list: () => BpmnNodeDefinition[]
-  getByKey: (key: string) => BpmnNodeDefinition | undefined
+export type NodeRuntimeServices = {
+  getNodeKey: typeof import('./services/extension-field-service').getNodeKey
+  getNodeData: typeof import('./services/extension-field-service').getNodeData
+  setNodeKey: typeof import('./services/extension-field-service').setNodeKey
+  setNodeData: typeof import('./services/extension-field-service').setNodeData
+}
+
+/**
+ * 节点事件处理函数收到的统一 payload。
+ */
+export type NodeEventPayload = {
+  event: { element?: RuntimeDiagramElement }
+  element: RuntimeDiagramElement
+  services: NodeRuntimeServices
+  moddle: {
+    create: (type: string, attrs?: Record<string, unknown>) => Record<string, unknown>
+  }
+}
+
+/**
+ * 每个节点可选提供的一组事件处理逻辑。
+ */
+export type NodeEventHandlers = {
+  click?: (payload: NodeEventPayload) => void
+  created?: (payload: NodeEventPayload) => void
+  changed?: (payload: NodeEventPayload) => void
+}
+
+/**
+ * 单个业务节点插件的统一契约。
+ *
+ * 节点插件目录只需要输出这个结构，系统层就可以统一聚合其 palette / renderer / events / moddle。
+ */
+export type BpmnNodePlugin = {
+  type: string
+  baseType: 'bpmn:UserTask' | 'bpmn:ServiceTask'
+  moddle?: NodeModdleFragment
+  palette?: NodePaletteConfig
+  renderer?: NodeRendererConfig
+  events?: NodeEventHandlers
+  is: (element: RuntimeDiagramElement) => boolean
+}
+
+/**
+ * 插件注册中心的最小能力集。
+ */
+export type BpmnNodePluginRegistry = {
+  list: () => BpmnNodePlugin[]
+  getByType: (type: string) => BpmnNodePlugin | undefined
 }
