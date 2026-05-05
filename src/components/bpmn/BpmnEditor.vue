@@ -1,3 +1,10 @@
+<!-- BpmnEditor 只负责
+初始化 bpmn-js
+导入导出 XML/SVG
+选中节点事件
+位置/布局操作
+获取当前元素快照
+更新 BPMN 节点基础属性或扩展属性 -->
 <script setup lang="ts">
 import BpmnModeler from 'bpmn-js/lib/Modeler'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
