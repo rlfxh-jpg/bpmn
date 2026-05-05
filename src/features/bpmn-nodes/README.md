@@ -2,173 +2,238 @@
 
 ## 目录目标
 
-`src/features/bpmn-nodes/` 用来承载“基于标准 BPMN 元素的可插拔节点扩展体系”。
+`src/features/bpmn-nodes/` 现在采用“节点独立开发 + 核心统一聚合 + 事件统一分发”的插件式结构。
 
-这个目录的核心目标不是单纯放几个节点配置，而是建立一套稳定的扩展框架，使新增节点时：
+这个目录的目标不是把业务节点逻辑塞进编辑器，而是提供一个独立的节点扩展系统，使业务节点能够：
 
-- 不需要修改页面主逻辑
-- 不需要把业务逻辑散落到编辑器组件中
-- 不需要手工拼装 BPMN XML 扩展字段
+- 基于标准 BPMN 元素扩展
+- 通过 `extensionElements` 标识节点身份
+- 独立声明 palette / renderer / events / moddle 片段
+- 通过统一入口聚合后再注入编辑器
 
-## 为什么拆成 `core + 节点目录 + presets`
+## 当前目录结构
+
+```text
+src/features/bpmn-nodes/
+├─ core/
+│  ├─ aggregated-events.ts
+│  ├─ aggregated-palette.ts
+│  ├─ aggregated-renderer.ts
+│  ├─ merge-moddle.ts
+│  ├─ registry.ts
+│  ├─ runtime-services.ts
+│  ├─ types.ts
+│  ├─ moddle/
+│  │  └─ custom.json
+│  ├─ services/
+│  │  └─ extension-field-service.ts
+│  └─ shared/
+│     └─ business-object.ts
+├─ nodes/
+│  ├─ approval-task/
+│  │  ├─ events.ts
+│  │  ├─ index.ts
+│  │  ├─ moddle.ts
+│  │  ├─ palette.ts
+│  │  └─ renderer.ts
+│  └─ system-task/
+│     ├─ events.ts
+│     ├─ index.ts
+│     ├─ moddle.ts
+│     ├─ palette.ts
+│     └─ renderer.ts
+├─ presets/
+│  └─ default-nodes.ts
+└─ index.ts
+```
+
+## 为什么是 `core + nodes + presets + index`
 
 ### `core/`
 
-`core` 是整套节点扩展体系的公共内核。
+`core` 负责所有节点都共享的基础设施：
 
-它负责解决所有节点都共用的问题：
+- 节点插件协议定义
+- 插件注册和查询
+- palette 聚合
+- 事件统一监听与分发
+- 外观聚合
+- moddle 合并
+- 扩展字段统一读写
 
-- 类型协议如何定义
-- 节点如何注册
-- BPMN 扩展字段如何读写
-- 自定义 moddle 如何声明
-- palette / 创建行为等公共模块如何接入 `bpmn-js`
+这里的原则是：凡是“所有节点都要复用”的能力，都收敛到 `core`，避免每个节点重复实现底层逻辑。
 
-把这些能力收敛到 `core`，是为了避免每个节点各写一套底层逻辑，最终导致重复代码和耦合失控。
+### `nodes/`
 
-### `approval-task/`、`system-task/`
+`nodes/` 下面每个目录就是一个真正的业务节点插件。
 
-每个具体节点使用独立目录，是为了保证“节点级高内聚”。
+每个节点目录只负责自己的：
 
-一个节点目录只关心：
+- 业务节点类型标识
+- 对应标准 BPMN 基础类型
+- 左侧工具栏配置
+- 外观配置
+- 事件处理逻辑
+- 需要的 moddle 片段
 
-- 自己是什么节点
-- 自己有哪些业务字段
-- 自己在左侧工具栏怎么展示
-- 自己有哪些默认行为
-- 自己未来如何扩展渲染或属性面板
-
-这样新增节点时，开发者只需要围绕这个节点目录工作，不需要在项目里到处跳转找零散逻辑。
+这样节点天然高内聚，新增节点时只需要围绕该目录工作。
 
 ### `presets/`
 
-`presets` 用来管理“当前启用哪些节点”。
+`presets/` 只负责声明“当前启用了哪些节点插件”。
 
-这层单独存在的原因是把：
+这层单独存在的价值在于把：
 
 - 节点实现
 - 节点启用策略
 
-明确分离。
+彻底分开。后续如果切换场景、权限或后端下发启用清单，优先改 preset，而不是改节点源码。
 
-后续如果要支持：
+### `index.ts`
 
-- 不同场景启用不同节点集
-- 后端下发启用清单
-- 权限控制某些节点是否可用
+根入口负责：
 
-都可以优先在 `presets` 或上层配置做变化，而不用修改节点本体。
+- 收集当前启用节点
+- 生成统一 `customModdle`
+- 生成统一 `customNodeModule`
 
-## 为什么不发明新的 BPMN 基础元素类型
+编辑器或页面层只和这个入口交互，而不直接 import 各个节点目录。
 
-本项目当前约束是：不随意脱离 BPMN 标准发明新的基础元素类型。
+## 为什么节点仍然基于标准 BPMN 元素
 
-因此扩展节点的做法是：
+当前约束依然是：
+
+- 不随意发明新的基础 BPMN 元素类型
+- 节点身份只通过扩展数据表达
+
+例如：
 
 - 审批任务基于 `bpmn:UserTask`
 - 系统处理基于 `bpmn:ServiceTask`
 
-业务差异通过以下层面表达：
+业务节点身份通过 `extensionElements` 中的 `custom:NodeMeta` 识别，而不是通过 `bpmn:ApprovalTask` 这种自造元素类型识别。
 
-- 左侧 palette 入口
-- 自定义颜色和角标
-- 右侧业务属性
-- 扩展字段
-
-这样做的收益是：
+这样做的好处是：
 
 - 流程语义仍然是标准 BPMN
-- 导出的 XML 更容易和其他工具或后端兼容
-- 自定义扩展可以逐步增强，而不需要从一开始就设计复杂的新元素体系
+- 导出的 XML 更容易与其他工具或后端兼容
+- 节点扩展可以迭代，但 BPMN 基础语义不被破坏
 
-## 为什么扩展字段要统一走 `extensionElements`
+## 为什么节点内部使用纯配置 / 纯函数风格
 
-早期最简单的做法是直接给 `businessObject` 挂自定义字段，
-但那样的问题很明显：
+当前节点插件目录刻意不直接暴露 `bpmn-js` provider class。
 
-- 不一定能被 `saveXML()` 序列化
-- 导入回来后不一定能恢复
-- 页面、校验、创建逻辑可能各写一套字段访问方式
+原因是：
 
-所以这里采用统一的做法：
+- 节点开发门槛更低
+- 节点代码更容易测试
+- `bpmn-js` 生命周期和依赖注入细节全部收敛在聚合层
+- 不会把 `eventBus` / `palette` / `renderer` 这种底层接入语义散落到每个节点目录
 
-- 使用 `core/moddle/custom.json` 声明自定义命名空间
-- 使用 `core/services/extension-field-service.ts` 统一读写
-- 所有节点都通过 `custom:NodeMeta + custom:Field[]` 结构存储业务数据
+节点只描述“我要什么能力”，聚合层负责“怎么接进 bpmn-js”。
 
-这样做的核心价值是“可持久化”和“统一协议”。
+## 事件为什么统一走聚合分发
 
-## 为什么很多节点目录文件现在还是占位
+当前第一版统一监听：
 
-像 `palette.ts`、`renderer.ts`、`properties.ts`、`behavior.ts` 这些文件当前很多还是 `export {}`，
-这不是无意义文件，而是刻意保留的扩展位。
+- `element.click`
+- `shape.added`
+- `element.changed`
 
-原因有三点：
+统一由 `aggregated-events.ts` 监听，再按节点插件分发。
 
-1. 目录职责稳定
-维护者一眼就能看出一个节点未来可能有哪些能力边界。
+这么做的原因：
 
-2. 方便渐进演进
-当前先由 core 层统一接管部分逻辑，未来如果某个节点需要专属实现，可以直接补到对应文件里。
+- 避免每个节点自己重复绑定 `eventBus`
+- 避免生命周期和解绑边界混乱
+- 让所有事件入口清晰可控
 
-3. 避免过早把节点特性塞回公共层
-如果没有这些明确的扩展位，后续很容易把节点专属逻辑继续堆进 core，破坏低耦合设计。
+需要特别注意的一点是：
+
+- `click / changed` 可以通过 `plugin.is(element)` 判断
+- `created` 不能完全依赖 `plugin.is(element)`
+
+因为节点刚创建出来时，还没有写入 `nodeKey`。所以系统通过 runtime services 中的“待创建节点类型”上下文，先完成首次识别，再把 `nodeKey / nodeData` 写入 `extensionElements`。
+
+## 为什么扩展字段要统一走 `extension-field-service`
+
+如果页面、节点事件、校验规则都各自手写 `extensionElements` 结构，会出现：
+
+- XML 结构散落
+- 写法不一致
+- 难以维护
+- 导入导出恢复不稳定
+
+因此当前统一做法是：
+
+- `core/moddle/custom.json` 定义 XML 扩展结构
+- `core/services/extension-field-service.ts` 统一读写
+
+这样所有节点都通过一套标准方式读写：
+
+- `custom:NodeMeta`
+- `custom:Field`
+
+## 与 BpmnEditor 的关系
+
+重构后的 `bpmn-nodes` 不再把实现细节塞进 `BpmnEditor`。
+
+推荐边界是：
+
+- `BpmnEditor`
+  - 只负责通用建模器能力
+  - 接受外部传入 `additionalModules` 和 `moddleExtensions`
+
+- `bpmn-nodes/index.ts`
+  - 对外导出 `customNodeModule`
+  - 对外导出 `customModdle`
+
+- 页面层
+  - 把它们装配进 `BpmnEditor`
+
+这使得 `BpmnEditor` 和节点系统是“装配关系”，不是“源码内嵌关系”。
+
+## 当前节点插件的实际职责
+
+### `nodes/approval-task/`
+
+- 描述审批任务是什么
+- 配置审批任务的左侧入口
+- 配置审批任务外观
+- 在 `created` 事件中写入默认审批字段
+
+### `nodes/system-task/`
+
+- 描述系统处理节点是什么
+- 配置系统处理节点的左侧入口
+- 配置系统处理节点外观
+- 在 `created` 事件中写入默认系统字段
 
 ## 当前整体设计原则
 
 ### 高内聚
 
-- 单个节点自己的定义集中在自己的目录
-- 扩展字段逻辑集中在统一服务中
-- 公共模块集中在 core 中
+- 单个节点自己的逻辑集中在自己的目录
+- 所有底层基础设施集中在 `core`
 
 ### 低耦合
 
 - 页面层不硬编码节点细节
-- 编辑器层不直接依赖某个具体节点目录
-- 节点启用策略与节点定义分离
+- 编辑器层不直接依赖节点实现
+- 节点启用策略与节点源码分离
 
 ### 可拔插
 
-- 新增节点主要是新增一个目录并接入 preset
-- 停用节点主要是调整 preset
-- 布局、校验、属性面板等后续能力都可以继续围绕这套结构演进
-
-## 当前目录的实际分工
-
-- `core/types.ts`
-定义整套扩展体系的统一协议
-
-- `core/registry.ts`
-负责节点注册和查询
-
-- `core/services/extension-field-service.ts`
-统一读写 BPMN XML 中的扩展字段
-
-- `core/modules/palette-provider.ts`
-把节点定义转换成左侧工具栏入口
-
-- `core/modules/create-behavior.ts`
-在标准 BPMN 元素创建完成后补充业务节点扩展信息
-
-- `core/moddle/custom.json`
-定义扩展字段在 BPMN XML 中的真实结构
-
-- `approval-task/`
-审批任务节点定义及未来专属扩展点
-
-- `system-task/`
-系统处理节点定义及未来专属扩展点
-
-- `presets/default-nodes.ts`
-声明当前默认启用的节点集合
+- 新增节点主要是新增一个节点目录并加入 preset
+- 下线节点主要是调整 preset
+- palette / events / renderer / moddle 都统一走聚合入口
 
 ## 后续推荐演进方向
 
-如果继续完善这一套体系，建议按下面顺序演进：
+如果继续完善当前结构，推荐顺序是：
 
-1. 把右侧业务属性面板进一步下沉到节点目录配置
-2. 为不同字段类型增加更丰富的表单渲染能力
-3. 让校验规则可以按节点类型挂接
-4. 继续增强节点外观渲染方式
-5. 支持不同业务场景装配不同 preset
+1. 恢复或重建业务属性面板，并与新插件体系对接
+2. 让聚合渲染层支持更丰富的标签与角标表现
+3. 让校验规则按节点插件挂接
+4. 支持不同场景加载不同 preset
+5. 最后再考虑更复杂的 commandStack 事件体系
